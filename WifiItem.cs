@@ -1,4 +1,4 @@
-﻿using SDD = System.Diagnostics.Debug;
+﻿// Ignore Spelling: IWS Wifi
 
 #if ANDROID
 using Android.Net.Wifi;
@@ -6,20 +6,22 @@ using Android.Net.Wifi;
 using NetworkExtension;
 #endif
 
-using Microsoft.Maui.Layouts;
-using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 
 namespace WifiScannerLib
 {
-    //so how this works (idk if it's how it /should/ work, but oh well) is this is
-    //the interface for retreiving data, implemented in classes target at Android & IOS
-    //so they just work fine with whatever platform the app is currently on
     public interface IWS
     {
-        public IEnumerable<WifiInfoItem> GetData();
+        public event EventHandler ScanReturned;
+
+        public void TriggerScan();
     }
 
-    //this is what the data is
+
+
+    /// <summary>
+    /// Holds relevant data about APs
+    /// </summary>
     public class WifiInfoItem : IEquatable<WifiInfoItem>
     {
         //Android-specific shenanigans
@@ -60,50 +62,94 @@ namespace WifiScannerLib
         #endregion
 
         public WifiInfoItem()
-        {}
+        { }
 
+        [JsonInclude]
         public string BSSID { get; set; } = string.Empty;
+
+        [JsonInclude]
         public string SSID { get; set; } = string.Empty;
+
+        [JsonInclude]
         private float _RSSI = -101;
+
+        [JsonIgnore]
         public string RSSI
         {
             get => _RSSI.ToString("#dbm");
-            set => _RSSI = float.Parse(value); 
+            set => _RSSI = float.Parse(value.Replace("dbm", ""));
         }
+
+        [JsonIgnore]
         public string Capabilities { get; set; } = string.Empty;
+
+        [JsonIgnore]
         public TimeSpan LastUpdated { get; set; } = TimeSpan.Zero;
-		private double _Distance {get; set;} = 0d;
+
+        [JsonInclude]
+        private double _Distance { get; set; } = 0d;
+
+        [JsonIgnore]
         public string Distance
         {
             get => $"{_Distance.ToString("F2")}m";
             set => _Distance = double.Parse(value);
         }
 
+        [JsonIgnore]
         public double PrimaryFrequency { get; set; } = 0d;
 
+        public static double DistanceCalc(double _Frequency, float _RSSI)
+        {
+            //10^((27.55 - 20*log10(f) + |R|)/20)
+            return Math.Pow(10, (27.55d - 20 * Math.Log10(_Frequency) + Math.Abs(_RSSI)) / 20d);
+        }
+
         public WifiInfoItem Clone()
-        {return this.MemberwiseClone() as WifiInfoItem;}
+        { return this.MemberwiseClone() as WifiInfoItem; }
 
         public bool Equals(WifiInfoItem A, WifiInfoItem B)
         {
             if (A.BSSID == B.BSSID)
-            {return true;}
+            { return true; }
             else
-            {return false;}
+            { return false; }
         }
 
         public bool Equals(WifiInfoItem B)
         {
             if (this.BSSID == B.BSSID)
-            {return true;}
+            { return true; }
             else
-            {return false;}
+            { return false; }
         }
 
-        private static double DistanceCalc(double _Frequency, float _RSSI)
+        public override string ToString()
+        { return $"BSSID: {BSSID}, SSID: {SSID}, RSSI: {RSSI}, Distance: {Distance}"; }
+    }
+
+    public class WifiEvent : EventArgs
+    {
+        public Dictionary<string, WifiInfoItem> Data { get; private set; }
+        public int Count { get; private set; } = 0;
+
+        public WifiEvent()
         {
-            //10^((27.55 - 20*log10(f) + |R|)/20)
-            return Math.Pow(10, (27.55d - 20 * Math.Log10(_Frequency) + Math.Abs(_RSSI))/20d);
+            Data = new Dictionary<string, WifiInfoItem>();
+            Count = 0;
+        }
+
+        public WifiEvent(IEnumerable<WifiInfoItem> _Wifis)
+        {
+            Count = _Wifis.Count();
+
+            _Wifis.ToDictionary(X => X.BSSID, Y => Y);
+        }
+
+        public WifiEvent(Dictionary<string, WifiInfoItem> _Data)
+        {
+            Data = _Data;
+            Count = Data.Count;
         }
     }
 }

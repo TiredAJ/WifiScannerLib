@@ -1,10 +1,8 @@
-﻿using Android;
-using Android.App;
+﻿using Android.App;
 using Android.Content;
 using Android.Net;
 using Android.Net.Wifi;
 using Android.OS;
-using SDD = System.Diagnostics.Debug;
 
 namespace WifiScannerLib
 {
@@ -22,6 +20,12 @@ namespace WifiScannerLib
 
         public Context CTX;
 
+        public event EventHandler ScanReturned;
+
+        /// <summary>
+        /// Parametrised constructor to assign context to the scanner object
+        /// </summary>
+        /// <param name="_CTX">Context</param>
         public AndroidWS(Context _CTX)
         {
             CTX = _CTX;
@@ -34,15 +38,17 @@ namespace WifiScannerLib
         public AndroidWS()
         { }
 
+        /// <summary>
+        /// Needed by Service inheritance. Think it's called when service is created
+        /// </summary>
         public override void OnCreate()
-        {
-            //SDD.WriteLine("**** On Create Called ****");
+        { Initialise(); }
 
-            //Context temp = Android.App.Application.Context;
-
-            Initialise();
-        }
-
+        /// <summary>
+        /// Initialises the scanner
+        /// </summary>
+        /// <exception cref="NullReferenceException">Thrown when context is missing</exception>
+        /// <exception cref="Exception">Thrown when WM (WifiManager) is null</exception>
         private void Initialise()
         {
             //SDD.WriteLine("**** Initialise called ****");
@@ -52,9 +58,9 @@ namespace WifiScannerLib
 
 
 #if ANDROID23_0_OR_GREATER
-            SDD.Write($"access wifi state: {CTX.CheckSelfPermission(Manifest.Permission.AccessWifiState)}");
-            SDD.Write($"access fine location: {CTX.CheckSelfPermission(Manifest.Permission.AccessFineLocation)}");
-            SDD.Write($"change wifi state: {CTX.CheckSelfPermission(Manifest.Permission.ChangeWifiState)}");
+            //SDD.Write($"access wifi state: {CTX.CheckSelfPermission(Manifest.Permission.AccessWifiState)}");
+            //SDD.Write($"access fine location: {CTX.CheckSelfPermission(Manifest.Permission.AccessFineLocation)}");
+            //SDD.Write($"change wifi state: {CTX.CheckSelfPermission(Manifest.Permission.ChangeWifiState)}");
 #endif
 
             WM = (WifiManager)CTX.GetSystemService(WifiService);
@@ -68,13 +74,75 @@ namespace WifiScannerLib
             NetCB.Initialise(CB);
         }
 
+        /// <summary>
+        /// Triggers a scan. Subscribe to <c>ScanReturned</c> for data
+        /// </summary>
+        public void TriggerScan()
+        {
+            if (CM == null)
+            { throw new Exception("CM was null!"); }
+
+            if (IsRegistered)
+            {
+                CM.UnregisterNetworkCallback(NetCB);
+                IsRegistered = false;
+            }
+
+            if (!IsRegistered)
+            {
+                CM.RegisterNetworkCallback
+                (
+                    new NetworkRequest.Builder().AddTransportType(TransportType.Wifi).Build(),
+                    NetCB
+                );
+                IsRegistered = true;
+            }
+        }
+
+        /// <summary>
+        /// Callback for Connectivity Manager
+        /// </summary>
+        private void CB()
+        {
+            ScanData.Clear();
+
+            if (WM.ScanResults.Count > 0)
+            {
+                foreach (var N in WM.ScanResults)
+                { ScanData.Add(new WifiInfoItem(N)); }
+
+                OnScanResult(new WifiEvent(ScanData));
+            }
+            else
+            { OnScanResult(new WifiEvent()); }
+        }
+
+        /// <summary>
+        /// Wrapper for ScanReturn event
+        /// </summary>
+        /// <param name="We">WifiEvent args</param>
+        private void OnScanResult(WifiEvent We)
+        { ScanReturned?.Invoke(this, We); }
+
+        /// <summary>
+        /// Mandated by Service inheritance
+        /// </summary>
+        public override IBinder? OnBind(Intent? _Int)
+        {
+#if ANDROID29_0_OR_GREATER
+            return new Binder(_Int.Action);
+#endif
+            throw new Exception("idfk what this function's supposed to do");
+        }
+
+        #region Old
         //is called to collect data
-        public IEnumerable<WifiInfoItem> GetData()
+        /*public IEnumerable<WifiInfoItem> GetData()
         {
             //SDD.WriteLine("**** Get Data called ****");
 
             if (CM == null)
-            {throw new Exception("CM was null!");}
+            { throw new Exception("CM was null!"); }
 
             if (IsRegistered)
             {
@@ -92,42 +160,20 @@ namespace WifiScannerLib
                 IsRegistered = true;
             }
 
-            //SDD.WriteLine($"***** Scan results {ScanData.Count} *****");
+            //SDD.WriteLine($"***** TriggerScan results {ScanData.Count} *****");
 
             return ScanData;
-        }
+        } */
 
-        //collects the data
-        public bool CB()
-        {
-            ScanData.Clear();
 
-            if (WM.ScanResults.Count > 0)
-            {
-                foreach (var N in WM.ScanResults)
-                { ScanData.Add(new WifiInfoItem(N)); }
-
-                return true;
-            }
-            else
-            { return false; }
-        }
-
-        //only here because Service inheritance mandates it
-        public override IBinder? OnBind(Intent? _Int)
-        {
-#if ANDROID29_0_OR_GREATER
-            return new Binder(_Int.Action);
-#endif
-            throw new Exception("idfk what this function's supposed to do");
-        }
+        #endregion
     }
 
     public class NC : ConnectivityManager.NetworkCallback
     {
-        public Func<bool> CallBack { get; set; }
+        public Action CallBack { get; set; }
 
-        public void Initialise(Func<bool> _CallBack)
+        public void Initialise(Action _CallBack)
         { CallBack = _CallBack; }
 
         public NC()
