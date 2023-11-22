@@ -4,6 +4,8 @@ using Android.Net;
 using Android.Net.Wifi;
 using Android.OS;
 
+using SDD = System.Diagnostics.Debug;
+
 namespace WifiScannerLib
 {
     // All the code in this file is only included on Android.
@@ -58,9 +60,9 @@ namespace WifiScannerLib
 
 
 #if ANDROID23_0_OR_GREATER
-            //SDD.Write($"access wifi state: {CTX.CheckSelfPermission(Manifest.Permission.AccessWifiState)}");
-            //SDD.Write($"access fine location: {CTX.CheckSelfPermission(Manifest.Permission.AccessFineLocation)}");
-            //SDD.Write($"change wifi state: {CTX.CheckSelfPermission(Manifest.Permission.ChangeWifiState)}");
+            SDD.Write($"access wifi state: {CTX.CheckSelfPermission(Android.Manifest.Permission.AccessWifiState)}");
+            SDD.Write($"access fine location: {CTX.CheckSelfPermission(Android.Manifest.Permission.AccessFineLocation)}");
+            SDD.Write($"change wifi state: {CTX.CheckSelfPermission(Android.Manifest.Permission.ChangeWifiState)}");
 #endif
 
             WM = (WifiManager)CTX.GetSystemService(WifiService);
@@ -79,6 +81,8 @@ namespace WifiScannerLib
         /// </summary>
         public void TriggerScan()
         {
+            SDD.WriteLine("Android called!");
+
             if (CM == null)
             { throw new Exception("CM was null!"); }
 

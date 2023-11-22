@@ -143,7 +143,9 @@ namespace WifiScannerLib
         {
             Count = _Wifis.Count();
 
-            _Wifis.ToDictionary(X => X.BSSID, Y => Y);
+            //you fucking idiot
+            Data = _Wifis.ToDictionary(X => X.BSSID, Y => Y);
+            //^ this was missing
         }
 
         public WifiEvent(Dictionary<string, WifiInfoItem> _Data)
