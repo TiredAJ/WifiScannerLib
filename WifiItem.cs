@@ -14,10 +14,10 @@ namespace WifiScannerLib
     {
         public event EventHandler ScanReturned;
 
+        public Device DType();
+        public bool CheckLocation();
         public void TriggerScan();
     }
-
-
 
     /// <summary>
     /// Holds relevant data about APs
@@ -71,7 +71,7 @@ namespace WifiScannerLib
         public string SSID { get; set; } = string.Empty;
 
         [JsonInclude]
-        private float _RSSI = -101;
+        public float _RSSI { get; private set; } = -101;
 
         [JsonIgnore]
         public string RSSI
@@ -87,7 +87,7 @@ namespace WifiScannerLib
         public TimeSpan LastUpdated { get; set; } = TimeSpan.Zero;
 
         [JsonInclude]
-        private double _Distance { get; set; } = 0d;
+        public double _Distance { get; private set; } = 0d;
 
         [JsonIgnore]
         public string Distance
@@ -153,5 +153,14 @@ namespace WifiScannerLib
             Data = _Data;
             Count = Data.Count;
         }
+    }
+
+    public enum Device
+    {
+        Android,
+        IOS,
+        Mac,
+        Linux,
+        Windows
     }
 }

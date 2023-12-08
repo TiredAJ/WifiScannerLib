@@ -1,9 +1,9 @@
 ﻿using Android.App;
 using Android.Content;
+using Android.Locations;
 using Android.Net;
 using Android.Net.Wifi;
 using Android.OS;
-
 using SDD = System.Diagnostics.Debug;
 
 namespace WifiScannerLib
@@ -137,6 +137,19 @@ namespace WifiScannerLib
             return new Binder(_Int.Action);
 #endif
             throw new Exception("idfk what this function's supposed to do");
+        }
+
+        public Device DType()
+        { return Device.Android; }
+
+        public bool CheckLocation()
+        {
+            using (LocationManager LM = (LocationManager)CTX.GetSystemService(LocationService))
+            {
+#if ANDROID28_0_OR_GREATER
+                return LM.IsLocationEnabled;
+#endif
+            }
         }
 
         #region Old
