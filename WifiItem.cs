@@ -83,8 +83,10 @@ namespace WifiScannerLib
         [JsonIgnore]
         public string Capabilities { get; set; } = string.Empty;
 
-        [JsonIgnore]
+        [JsonInclude]
         public TimeSpan LastUpdated { get; set; } = TimeSpan.Zero;
+        //https://developer.android.com/reference/android/net/wifi/ScanResult#timestamp
+
 
         [JsonInclude]
         public double _Distance { get; private set; } = 0d;

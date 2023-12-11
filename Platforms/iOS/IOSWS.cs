@@ -5,6 +5,13 @@
     {
         public event EventHandler ScanReturned;
 
+        public bool CheckLocation()
+        {
+            throw new NotImplementedException();
+        }
+
+        public Device DType() => Device.IOS;
+
         public void TriggerScan()
         { }
 
