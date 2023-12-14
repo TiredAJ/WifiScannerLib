@@ -1,4 +1,4 @@
-﻿// Ignore Spelling: IWS Wifi
+﻿// Ignore Spelling: IWS Wifi RSSI SSID BSSID NEHHR
 
 #if ANDROID
 using Android.Net.Wifi;
@@ -6,6 +6,8 @@ using Android.Net.Wifi;
 using NetworkExtension;
 #endif
 
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace WifiScannerLib
@@ -16,7 +18,7 @@ namespace WifiScannerLib
 
         public Device DType();
         public bool CheckLocation();
-        public void TriggerScan();
+        public void CollectData();
     }
 
     /// <summary>
@@ -71,13 +73,13 @@ namespace WifiScannerLib
         public string SSID { get; set; } = string.Empty;
 
         [JsonInclude]
-        public float _RSSI { get; private set; } = -101;
+        public int _RSSI { get; private set; } = -101;
 
         [JsonIgnore]
         public string RSSI
         {
             get => _RSSI.ToString("#dbm");
-            set => _RSSI = float.Parse(value.Replace("dbm", ""));
+            set => _RSSI = int.Parse(value.Replace("dbm", ""));
         }
 
         [JsonIgnore]
@@ -86,7 +88,6 @@ namespace WifiScannerLib
         [JsonInclude]
         public TimeSpan LastUpdated { get; set; } = TimeSpan.Zero;
         //https://developer.android.com/reference/android/net/wifi/ScanResult#timestamp
-
 
         [JsonInclude]
         public double _Distance { get; private set; } = 0d;
@@ -98,7 +99,7 @@ namespace WifiScannerLib
             set => _Distance = double.Parse(value);
         }
 
-        [JsonIgnore]
+        [JsonInclude]
         public double PrimaryFrequency { get; set; } = 0d;
 
         public static double DistanceCalc(double _Frequency, float _RSSI)
@@ -128,6 +129,32 @@ namespace WifiScannerLib
 
         public override string ToString()
         { return $"BSSID: {BSSID}, SSID: {SSID}, RSSI: {RSSI}, Distance: {Distance}"; }
+
+        public SigLevel GetLevel()
+        {
+            if (_RSSI > -34) return SigLevel.L1;
+            else if (_RSSI > -39) return SigLevel.L2;
+            else if (_RSSI > -44) return SigLevel.L3;
+            else if (_RSSI > -49) return SigLevel.L4;
+            else if (_RSSI > -54) return SigLevel.L5;
+            else if (_RSSI > -64) return SigLevel.L6;
+            else if (_RSSI > -74) return SigLevel.L7;
+            else if (_RSSI > -84) return SigLevel.L8;
+            else return SigLevel.L9;
+        }
+
+        public static SigLevel GetLevel(int _RSSI)
+        {
+            if (_RSSI > -34) return SigLevel.L1;
+            else if (_RSSI > -39) return SigLevel.L2;
+            else if (_RSSI > -44) return SigLevel.L3;
+            else if (_RSSI > -49) return SigLevel.L4;
+            else if (_RSSI > -54) return SigLevel.L5;
+            else if (_RSSI > -64) return SigLevel.L6;
+            else if (_RSSI > -74) return SigLevel.L7;
+            else if (_RSSI > -84) return SigLevel.L8;
+            else return SigLevel.L9;
+        }
     }
 
     public class WifiEvent : EventArgs
@@ -157,6 +184,37 @@ namespace WifiScannerLib
         }
     }
 
+    public record SnapshotData
+    {
+        [JsonInclude]
+        public int Index { get; private set; } = 0;
+        [JsonInclude]
+        public TimeSpan LastUpdated { get; private set; }
+        [JsonInclude]
+        public Dictionary<string, WifiInfoItem> Data { get; set; }
+
+        public SnapshotData()
+        {
+            LastUpdated = default;
+            Data = default;
+            Index = 0;
+        }
+
+        public SnapshotData(TimeSpan _LastUp, Dictionary<string, WifiInfoItem> _Data, int _Index)
+        {
+            LastUpdated = _LastUp;
+            Data = _Data;
+            Index = _Index;
+        }
+
+        public SnapshotData(JsonNode _JNode)
+        {
+            LastUpdated = _JNode["LastUpdated"].Deserialize<TimeSpan>();
+            Data = _JNode["Data"].Deserialize<Dictionary<string, WifiInfoItem>>();
+            Index = _JNode["Index"].Deserialize<int>();
+        }
+    }
+
     public enum Device
     {
         Android,
@@ -164,5 +222,19 @@ namespace WifiScannerLib
         Mac,
         Linux,
         Windows
+    }
+
+    [Flags]
+    public enum SigLevel
+    {
+        L1 = 1,
+        L2 = 2,
+        L3 = 4,
+        L4 = 8,
+        L5 = 16,
+        L6 = 32,
+        L7 = 64,
+        L8 = 128,
+        L9 = 256,
     }
 }

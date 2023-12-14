@@ -1,7 +1,7 @@
 ﻿using Android.App;
 using Android.Content;
+using Android.Content.PM;
 using Android.Locations;
-using Android.Net;
 using Android.Net.Wifi;
 using Android.OS;
 using SDD = System.Diagnostics.Debug;
@@ -13,14 +13,13 @@ namespace WifiScannerLib
     public class AndroidWS : Service, IWS
     {
         private WifiManager? WM;
-        private ConnectivityManager? CM;
-        private NC NetCB { get; set; }
+        private SRC NetWB { get; set; }
 
-        private bool IsRegistered = false;
+        private bool IsRegistered = false, Run = false;
 
         private List<WifiInfoItem> ScanData = new List<WifiInfoItem>();
 
-        public Context CTX;
+        public Context? CTX = null;
 
         public event EventHandler ScanReturned;
 
@@ -56,49 +55,55 @@ namespace WifiScannerLib
             //SDD.WriteLine("**** Initialise called ****");
 
             if (CTX == null)
-            { throw new NullReferenceException("CTX was null!?"); }
-
+            { throw new NullReferenceException("CTX was null?!"); }
 
 #if ANDROID23_0_OR_GREATER
-            SDD.Write($"access wifi state: {CTX.CheckSelfPermission(Android.Manifest.Permission.AccessWifiState)}");
-            SDD.Write($"access fine location: {CTX.CheckSelfPermission(Android.Manifest.Permission.AccessFineLocation)}");
-            SDD.Write($"change wifi state: {CTX.CheckSelfPermission(Android.Manifest.Permission.ChangeWifiState)}");
+            if (
+                CTX.CheckSelfPermission(Android.Manifest.Permission.AccessWifiState) == Permission.Denied ||
+                CTX.CheckSelfPermission(Android.Manifest.Permission.AccessFineLocation) == Permission.Denied ||
+                CTX.CheckSelfPermission(Android.Manifest.Permission.ChangeWifiState) == Permission.Denied
+                )
+            {
+                throw new Exception("Perms issue!");
+            }
 #endif
 
             WM = (WifiManager)CTX.GetSystemService(WifiService);
-            CM = (ConnectivityManager)CTX.GetSystemService(ConnectivityService);
 
-            if (WM == null)
-            { throw new Exception("WM was null!"); }
+            if (WM == null || WM.IsScanThrottleEnabled)
+            { throw new Exception("WM issue!"); }
 
-            NetCB = new NC();
+            NetWB = new SRC();
 
-            NetCB.Initialise(CB);
+            NetWB.Initialise(CB);
         }
+
+        public void StopScanner()
+        { Run = false; }
 
         /// <summary>
         /// Triggers a scan. Subscribe to <c>ScanReturned</c> for data
         /// </summary>
-        public void TriggerScan()
+        public void CollectData()
         {
             SDD.WriteLine("Android called!");
 
-            if (CM == null)
-            { throw new Exception("CM was null!"); }
+            Task.Run(() =>
+            { WM.StartScan(); });
+            //wtf android docs, this function is supposed to be
+            //depreciated, and is left with no clear alternative
+            //YET, it is the only mechanism that works to actually
+            //trigger a scan with up to date info? istg
 
-            if (IsRegistered)
-            {
-                CM.UnregisterNetworkCallback(NetCB);
-                IsRegistered = false;
-            }
 
             if (!IsRegistered)
             {
-                CM.RegisterNetworkCallback
+                WM.RegisterScanResultsCallback
                 (
-                    new NetworkRequest.Builder().AddTransportType(TransportType.Wifi).Build(),
-                    NetCB
+                    CTX.MainExecutor,
+                    NetWB
                 );
+
                 IsRegistered = true;
             }
         }
@@ -108,12 +113,18 @@ namespace WifiScannerLib
         /// </summary>
         private void CB()
         {
+            SDD.WriteLine("Call back!");
+
             ScanData.Clear();
 
             if (WM.ScanResults.Count > 0)
             {
                 foreach (var N in WM.ScanResults)
                 { ScanData.Add(new WifiInfoItem(N)); }
+
+                ScanData = ScanData
+                    .OrderByDescending(X => X._RSSI)
+                    .ToList();
 
                 OnScanResult(new WifiEvent(ScanData));
             }
@@ -177,7 +188,7 @@ namespace WifiScannerLib
                 IsRegistered = true;
             }
 
-            //SDD.WriteLine($"***** TriggerScan results {ScanData.Count} *****");
+            //SDD.WriteLine($"***** CollectData results {ScanData.Count} *****");
 
             return ScanData;
         } */
@@ -186,17 +197,17 @@ namespace WifiScannerLib
         #endregion
     }
 
-    public class NC : ConnectivityManager.NetworkCallback
+    public class SRC : WifiManager.ScanResultsCallback
     {
         public Action CallBack { get; set; }
 
         public void Initialise(Action _CallBack)
         { CallBack = _CallBack; }
 
-        public NC()
+        public SRC()
         { }
 
-        public override void OnAvailable(Network network)
+        public override void OnScanResultsAvailable()
         { CallBack(); }
     }
 }

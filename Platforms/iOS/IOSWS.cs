@@ -1,4 +1,6 @@
-﻿namespace WifiScannerLib
+﻿// Ignore Spelling: IOSWS Wifi
+
+namespace WifiScannerLib
 {
     // All the code in this file is only included on iOS.
     public class IOSWS : IWS
@@ -12,7 +14,7 @@
 
         public Device DType() => Device.IOS;
 
-        public void TriggerScan()
+        public void CollectData()
         { }
 
         private void OnScanResult(WifiEvent We)
