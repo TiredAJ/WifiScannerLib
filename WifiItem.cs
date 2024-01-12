@@ -187,9 +187,9 @@ namespace WifiScannerLib
     public record SnapshotData
     {
         [JsonInclude]
-        public int Index { get; private set; } = 0;
+        public int Index { get; set; } = 0;
         [JsonInclude]
-        public TimeSpan LastUpdated { get; private set; }
+        public TimeSpan LastUpdated { get; set; }
         [JsonInclude]
         public Dictionary<string, WifiInfoItem> Data { get; set; }
 
