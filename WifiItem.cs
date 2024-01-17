@@ -39,7 +39,7 @@ public class WifiInfoItem : IEquatable<WifiInfoItem>
         BSSID = _SR.Bssid;
 
         _RSSI = _SR.Level;
-        LastUpdated = TimeSpan.FromMicroseconds(_SR.Timestamp);
+        //LastUpdated = TimeSpan.FromMicroseconds(_SR.Timestamp);
 
         if (SSID == "")
 	        {SSID = "*Hidden*";}
@@ -64,7 +64,7 @@ public class WifiInfoItem : IEquatable<WifiInfoItem>
     #endregion
 
     public WifiInfoItem()
-    { }
+    { DateNabbed = DateTime.Now; }
 
     [JsonInclude]
     public string BSSID { get; set; } = string.Empty;
@@ -86,7 +86,7 @@ public class WifiInfoItem : IEquatable<WifiInfoItem>
     public string Capabilities { get; set; } = string.Empty;
 
     [JsonInclude]
-    public TimeSpan LastUpdated { get; set; } = TimeSpan.Zero;
+    public DateTime DateNabbed { get; set; } = DateTime.MinValue;
     //https://developer.android.com/reference/android/net/wifi/ScanResult#timestamp
 
     [JsonInclude]
